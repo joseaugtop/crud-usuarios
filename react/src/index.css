@@ -1,0 +1,6 @@
+/* ARQUIVO PRINCIPAL DE ESTILOS */
+@import "tailwindcss";
+
+@theme {
+  --font-montserrat: Montserrat, "sans-serif";
+}
