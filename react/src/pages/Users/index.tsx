@@ -1,11 +1,12 @@
-import { useEffect, useState } from "react"
-import api from "../../services/api.ts"
+import { useState } from "react"
 import Modal from "../../components/Modal"
-
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { FaUserGear } from "react-icons/fa6"
 import { FaTrash } from "react-icons/fa"
 import Input from "../../components/Input/index.tsx"
 import Button from "../../components/Button/index.tsx"
+import { deleteUser, fetchUsers, updateUser } from "../../services/usersApi.ts"
+import { BallPulse } from 'react-loading-indicators'
 function Users() {
   //   const users = [
   //     {
@@ -23,37 +24,44 @@ function Users() {
   //       favoriteFood: "moranog do amor",
   //     },
   //   ]
-  const [users, setUsers] = useState([])
-  const [showModal, setShowModal] = useState(false)
-  const [selectedUser, setSelectedUser] = useState<any>()
-  const [formData, setFormData] = useState<any>()
 
-  // const inputName = useRef<HTMLInputElement>(null)
-  // const inputAge = useRef<HTMLInputElement>(null)
-  // const inputEmail = useRef<HTMLInputElement>(null)
-  // const inputFavoriteFood = useRef<HTMLInputElement>(null)
+  const [showModal, setShowModal] = useState(false) //-> Mostra o modal de edição
+  const [selectedUser, setSelectedUser] = useState<any>() //-> Cria um estado de usuário selecionado
+  const [formData, setFormData] = useState<any>() //-> Dados do formulário de edição
+  const queryClient = useQueryClient()
 
-  //READ, UPDATE e DELETE
-  async function getUsers() {
-    const usersFromApi = await api.get("/users")
-    setUsers(usersFromApi.data)
-  }
+  // BUSCAR USUÁRIOS
 
-  useEffect(() => {
-    getUsers()
-  }, [])
+  const {
+    data: users = [],
+    isLoading,
+    isError,
+  } = useQuery({
+    queryKey: ["users"],
+    queryFn: fetchUsers,
+  })
 
-  async function deleteUsers(id: any) {
-    await api.delete(`users/${id}`)
-    getUsers()
-  }
+  //DELETAR USUÁRIO
+  const deleteMutation = useMutation({
+    mutationFn: deleteUser,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["users"] })
+    },
+  })
 
+  //EDITAR USUÁRIO
+  const updateMutation = useMutation({
+    mutationFn: ({ id, data }: { id: string; data: any }) =>
+      updateUser(id, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["users"] })
+    },
+  })
+
+  //Editar Usuário
   async function updateUsers() {
-    if (!selectedUser) return
-    if (
-      !formData ||
-      Object.values(formData).some((value: any) => String(value).trim() === "")
-    ) {
+    //Verificando se tem algo vazio no formulário de edição
+    if (!formData ||Object.values(formData).some((value: any) => String(value).trim() === ""))  {
       alert("por favor, preencha todos os campos")
       return
     }
@@ -63,18 +71,12 @@ function Users() {
       age: Number(formData.age), //-> vai substituir o conteudo de age do objeto pois ele já existe
     }
     if (!Number.isInteger(dataToSend.age)) {
-      //se dataToSend.age != de um numero inteiro
+      //se dataToSend.age for diferente de um numero inteiro
       alert("Insira um numero inteiro para idade")
       return
     }
-    try {
-      await api.put(`/users/${selectedUser.id}`, dataToSend)
-      setShowModal(false) //-> tira a visibilidade do campo de edição
-      getUsers() // -> atualiza os usuários
-    } catch (err: any) {
-      console.error(err)
-      return err
-    }
+    updateMutation.mutate({ id: selectedUser.id, data: dataToSend })
+    setShowModal(false)
   }
 
   function userModal(user: any) {
@@ -92,9 +94,11 @@ function Users() {
     const { name, value } = element.target
     setFormData((prev: any) => ({ ...prev, [name]: value }))
   }
-
+  if (isLoading) return <BallPulse color="#ffffff" size={30} />
+  if (isError) return <p>Erro ao carregar usuários</p>
   return (
     <>
+    <ThreeDot color="#ffffff" size="medium" text="" textColor="" />
       {users.map((user: any) => (
         <div className="flex justify-center">
           <div className="flex flex-col m-5 bg-stone-50 box-content  p-7 rounded-md font-montserrat w-[350px]">
@@ -119,7 +123,7 @@ function Users() {
                 <FaUserGear size={30} />
               </button>
               <button
-                onClick={() => deleteUsers(user.id)}
+                onClick={() => deleteMutation.mutate(user.id)}
                 className="cursor-pointer">
                 <FaTrash size={26} />
               </button>

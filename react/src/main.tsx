@@ -17,7 +17,7 @@ declare module "@tanstack/react-router" {
   }
 }
 
-const queryClient = new QueryClient()
+const queryClient = new QueryClient() //<- Instaciando o cliente
 
 // createRoot(document.getElementById("root")!).render(
 //   <StrictMode>
